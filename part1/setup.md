@@ -1,5 +1,11 @@
 # Setup
 
+> This is automated for the workshop:
+>
+> ```bash
+> bash ./bootstrap.sh [env-count]
+> ```
+
 ## Install a HA Redis Cluster
 
 Please install a highly available Redis cluster in your namespace:
