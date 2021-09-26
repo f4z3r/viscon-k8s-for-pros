@@ -26,12 +26,14 @@ set +e
 helm repo add bitnami https://charts.bitnami.com/bitnami > "$logdir/helm-repo-add" 2>&1
 set -e
 
-for idx in $(seq "$user_count"); do
+for idx in $(seq 0 "$user_count"); do
   echo "[+] setting up user $idx..."
   kubectl create ns "user-$idx" > "$logdir/user-$idx-create-ns" 2>&1
   sleep 1s
-  helm install -n "user-$idx" cache bitnami/redis-cluster > "$logdir/user-$idx-install-redis" 2>&1
-  helm install -n "user-$idx" sample-app ./sample-app > "$logdir/user-$idx-install-app" 2>&1
+  helm install -n "user-$idx" cache bitnami/redis-cluster \
+    --set "metrics.enabled=true" \
+    > "$logdir/user-$idx-install-redis" 2>&1
+  helm install -n "user-$idx" sample-app part1/sample-app > "$logdir/user-$idx-install-app" 2>&1
 done
 
 echo "[+] done"
