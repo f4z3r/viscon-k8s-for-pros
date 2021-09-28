@@ -5,61 +5,64 @@
 Get the kube-prometheus repository:
 
 ```bash
-git clone https://github.com/prometheus-operator/kube-prometheus.git
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+kubectl create ns monitoring
+helm -n monitoring install prom-stack prometheus-community/kube-prometheus-stack
 ```
 
-Then install everything:
-
-```bash
-cd kube-prometheus
-kubectl create -f manifests/setup
-until kubectl get servicemonitors --all-namespaces ; do date; sleep 1; echo ""; done
-kubectl create -f manifests/
-```
-
-Now wait a little. This will start a lot of containers in the `monitoring` namespace. Note that the
-`node-exporter` pods might fail. If this is the case use the following command:
-
-```bash
-kubectl -n monitoring edit ds/node-exporter
-```
-
-and remove the lines containing `mountPropagation` in the `volumeMounts` section (there should be
-two lines). After this save and close the file, which should update the DaemonSet and the pods
-should come up.
-
-### Create SM
-
-We will use a single service monitor for all Redis instances:
+Then create the following ServiceMonitor, it will watch all Redis clusters:
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  annotations:
-    app.kubernetes.io/component: exporter
-    app.kubernetes.io/name: redis-exporter
-    app.kubernetes.io/part-of: kube-prometheus
-    app.kubernetes.io/version: 0.19.0
   labels:
-    app.kubernetes.io/instance: cache
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/name: redis-cluster
-    helm.sh/chart: redis-cluster-6.3.6
+    release: prom-stack
   name: cache-redis-cluster
   namespace: monitoring
 spec:
   endpoints:
-  - interval: 10s
-    port: metrics
+  - port: metrics
+  namespaceSelector:
+    matchNames:
+    - user-0
+    - user-1
+    - user-2
+    - user-3
+    - user-4
+    - user-5
+    - user-6
+    - user-7
+    - user-8
+    - user-9
+    - user-10
+    - user-11
+    - user-12
+    - user-13
+    - user-14
+    - user-15
+    - user-16
+    - user-17
+    - user-18
+    - user-19
+    - user-20
+    - user-21
+    - user-22
+    - user-23
+    - user-24
+    - user-25
+    - user-26
+    - user-27
+    - user-28
+    - user-29
+    - user-30
   selector:
     matchLabels:
+      app.kubernetes.io/component: metrics
       app.kubernetes.io/instance: cache
       app.kubernetes.io/name: redis-cluster
 ```
-
-Apply it to the cluster.
-
 
 ## User Setup
 
