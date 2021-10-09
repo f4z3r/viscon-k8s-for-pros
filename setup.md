@@ -64,6 +64,31 @@ spec:
       app.kubernetes.io/name: redis-cluster
 ```
 
+Moreover, setup an alert for Redis:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app: kube-prometheus-stack
+    release: prom-stack
+  name: redis-rules
+  namespace: monitoring
+spec:
+  groups:
+  - name: redis
+    rules:
+    - alert: RedisDown
+      annotations:
+        description: Redis down ({{ $labels.instance }}).
+        summary: The Redis instance {{ $labels.instance }} is down.
+      expr: redis_up == 0
+      for: 1m
+      labels:
+        severity: critical
+```
+
 ## User Setup
 
 > This is automated for the workshop:
@@ -80,6 +105,9 @@ Please install a highly available Redis cluster in your namespace:
 helm repo add bitnami https://charts.bitnami.com/bitnami
 # change the namespace to your user namespace `user-<n>`.
 helm install -n user-0 cache bitnami/redis-cluster \
+  --set "persistence.size=1Gi" \
+  --set "redis.resources.requests.cpu=20m" \
+  --set "redis.resources.requests.memory=25Mi" \
   --set "metrics.enabled=true"
 ```
 

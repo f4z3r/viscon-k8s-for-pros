@@ -5,6 +5,7 @@
 * [Investigate Probes](#investigate-probes)
 * [Configure Liveness Probe](#configure-liveness-probe)
 * [Configure Readiness Probe](#configure-readiness-probe)
+* [Ensure the Pods run on different Nodes](#ensure-the-pods-run-on-different-nodes)
 
 ---
 
@@ -303,7 +304,7 @@ Therefore we pick `preferredDuringSchedulingIgnoredDuringExecution`.
 For the second question, we need to identify the pod labels that uniquely identify our application.
 Let us get the labels for our application:
 
-```bash
+```
 $ kubectl -n user-0 get pods --show-labels
 NAME                          READY   STATUS    RESTARTS   AGE     LABELS
 cache-redis-cluster-0         2/2     Running   0          7m13s   app.kubernetes.io/instance=cache,app.kubernetes.io/managed-by=Helm,app.kubernetes.io/name=redis-cluster,controller-revision-hash=cache-redis-cluster-6d8f9767f6,helm.sh/chart=redis-cluster-6.3.7,statefulset.kubernetes.io/pod-name=cache-redis-cluster-0
@@ -361,7 +362,7 @@ under `spec.template.spec`.
 Once this is done, there will be rolling deployment to update our instances. When the rolling
 deployment is completed, we can check that all pods are running on different nodes:
 
-```bash
+```
 $ kubectl -n user-0 get pods -l "app.kubernetes.io/instance=sample-app,release/namespace=user-0" -o wide
 NAME                          READY   STATUS    RESTARTS   AGE    IP           NODE                                            NOMINATED NODE   READINESS GATES
 sample-app-59b455f75d-4fwx2   1/1     Running   0          47s    10.84.0.59   gke-viscon-cluster-default-pool-ae1e0eb6-p70v   <none>           <none>
