@@ -31,6 +31,9 @@ for idx in $(seq 0 "$user_count"); do
   kubectl create ns "user-$idx" > "$logdir/user-$idx-create-ns" 2>&1
   sleep 1s
   helm install -n "user-$idx" cache bitnami/redis-cluster \
+    --set "persistence.size=1Gi" \
+    --set "redis.resources.requests.cpu=20m" \
+    --set "redis.resources.requests.memory=25Mi" \
     --set "metrics.enabled=true" \
     > "$logdir/user-$idx-install-redis" 2>&1
   helm install -n "user-$idx" sample-app part1/sample-app > "$logdir/user-$idx-install-app" 2>&1

@@ -48,4 +48,5 @@ Selector labels
 {{- define "sample-app.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "sample-app.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+release/namespace: {{ .Release.Namespace }}
 {{- end }}

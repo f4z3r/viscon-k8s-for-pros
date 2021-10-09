@@ -266,3 +266,109 @@ it deletes an old one. Then it will start a second new one, wait for this one to
 killing a second old one. And so forth.
 
 </details>
+
+## Ensure the Pods run on different Nodes
+
+What if all our pods run on the same node? If that node crashes, all pods will be down and will need
+to be rescheduled. During this time, the application will be down! Let us configure the deployment
+in such a way that all 3 pods run on different nodes.
+
+For more information see: [Affinity and anti-affinity of the Kubernetes documentation][affinity].
+
+[affinity]: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+
+<details>
+  <summary>Solution</summary>
+
+We will need to use a pod anti-affinity, to ensure no pod from our deployment is scheduled onto a
+node that already contains a pod from our deployment.
+
+See: [Inter-pod affinity and anti-affinity][pod-affinity]
+
+[pod-affinity]: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
+
+There are several things to consider now:
+
+1. What kind of anti-affinity do we want? Should we consider this during scheduling only, or also
+   during runtime?
+2. What labels should be match on? How can our application pods be identified?
+3. Based on what topology are we basing ourselves?
+
+Regarding the first question, we need to consider what can possibly happen. Currently, we assume no
+other teams deploy applications with the same label sets as we do, so checking affinities at
+schedule time and runtime is equivalent. Moreover, we will chose a "preferred" mode, instead of
+"required", since we would rather schedule two pods on the same node as not schedule at all.
+Therefore we pick `preferredDuringSchedulingIgnoredDuringExecution`.
+
+For the second question, we need to identify the pod labels that uniquely identify our application.
+Let us get the labels for our application:
+
+```bash
+$ kubectl -n user-0 get pods --show-labels
+NAME                          READY   STATUS    RESTARTS   AGE     LABELS
+cache-redis-cluster-0         2/2     Running   0          7m13s   app.kubernetes.io/instance=cache,app.kubernetes.io/managed-by=Helm,app.kubernetes.io/name=redis-cluster,controller-revision-hash=cache-redis-cluster-6d8f9767f6,helm.sh/chart=redis-cluster-6.3.7,statefulset.kubernetes.io/pod-name=cache-redis-cluster-0
+cache-redis-cluster-1         2/2     Running   0          7m13s   app.kubernetes.io/instance=cache,app.kubernetes.io/managed-by=Helm,app.kubernetes.io/name=redis-cluster,controller-revision-hash=cache-redis-cluster-6d8f9767f6,helm.sh/chart=redis-cluster-6.3.7,statefulset.kubernetes.io/pod-name=cache-redis-cluster-1
+cache-redis-cluster-2         2/2     Running   0          7m13s   app.kubernetes.io/instance=cache,app.kubernetes.io/managed-by=Helm,app.kubernetes.io/name=redis-cluster,controller-revision-hash=cache-redis-cluster-6d8f9767f6,helm.sh/chart=redis-cluster-6.3.7,statefulset.kubernetes.io/pod-name=cache-redis-cluster-2
+cache-redis-cluster-3         2/2     Running   0          7m13s   app.kubernetes.io/instance=cache,app.kubernetes.io/managed-by=Helm,app.kubernetes.io/name=redis-cluster,controller-revision-hash=cache-redis-cluster-6d8f9767f6,helm.sh/chart=redis-cluster-6.3.7,statefulset.kubernetes.io/pod-name=cache-redis-cluster-3
+cache-redis-cluster-4         2/2     Running   0          7m12s   app.kubernetes.io/instance=cache,app.kubernetes.io/managed-by=Helm,app.kubernetes.io/name=redis-cluster,controller-revision-hash=cache-redis-cluster-6d8f9767f6,helm.sh/chart=redis-cluster-6.3.7,statefulset.kubernetes.io/pod-name=cache-redis-cluster-4
+cache-redis-cluster-5         2/2     Running   0          7m12s   app.kubernetes.io/instance=cache,app.kubernetes.io/managed-by=Helm,app.kubernetes.io/name=redis-cluster,controller-revision-hash=cache-redis-cluster-6d8f9767f6,helm.sh/chart=redis-cluster-6.3.7,statefulset.kubernetes.io/pod-name=cache-redis-cluster-5
+sample-app-5b85666758-cwrcf   1/1     Running   0          7m10s   app.kubernetes.io/instance=sample-app,app.kubernetes.io/name=sample-app,pod-template-hash=5b85666758,release/namespace=user-0
+sample-app-5b85666758-g88xf   1/1     Running   0          86s     app.kubernetes.io/instance=sample-app,app.kubernetes.io/name=sample-app,pod-template-hash=5b85666758,release/namespace=user-0
+sample-app-5b85666758-s2kjm   1/1     Running   0          86s     app.kubernetes.io/instance=sample-app,app.kubernetes.io/name=sample-app,pod-template-hash=5b85666758,release/namespace=user-0
+```
+
+We can see that `app.kubernetes.io/instance=sample-app` allows to identify our instance. However,
+other applications with the same instance name are deployed in other namespaces (from the other
+workshop participants). Therefore we will also need to use the `release/namespace=user-0` label to
+make sure we identify only our instance from this namespace. These two labels should be enough to
+uniquely identify all pods from out application instance.
+
+Finally, for the last question, we need to define the topology domain. The topology key in an
+affinity setting from Kubernetes determines the scope of the affinity. We want the scope of the
+affinity to be a single node. In other words, we want the pods to be scheduled on any node that does
+not already contain a pod from our deployment, without considering other topology domains such as
+server zones, racks, host operating systems, machine families, cloud regions, or anything else.
+Therefore we need to set the `topologyKey` to any node label that is unique for each node. For this
+we typically use the `kubernetes.io/hostname` label, which provides the hostname of each node (which
+obviously should be unique for each node).
+
+This results in the following anti-affinity:
+
+```yaml
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/instance
+            operator: In
+            values:
+            - sample-app
+          - key: release/namespace
+            operator: In
+            values:
+            - user-0
+        topologyKey: kubernetes.io/hostname
+```
+
+Note that we assigned a weight of 100 to the anti-affinity. This weight can be any value between 1
+and 100. Since no other affinities are defined in the cluster, the value is not really relevant, but
+making 100 makes it very high priority. We can now add this to the pod template in our deployment
+under `spec.template.spec`.
+
+Once this is done, there will be rolling deployment to update our instances. When the rolling
+deployment is completed, we can check that all pods are running on different nodes:
+
+```bash
+$ kubectl -n user-0 get pods -l "app.kubernetes.io/instance=sample-app,release/namespace=user-0" -o wide
+NAME                          READY   STATUS    RESTARTS   AGE    IP           NODE                                            NOMINATED NODE   READINESS GATES
+sample-app-59b455f75d-4fwx2   1/1     Running   0          47s    10.84.0.59   gke-viscon-cluster-default-pool-ae1e0eb6-p70v   <none>           <none>
+sample-app-59b455f75d-ft6lh   1/1     Running   0          75s    10.84.2.62   gke-viscon-cluster-default-pool-ae1e0eb6-vk5g   <none>           <none>
+sample-app-59b455f75d-z6qhj   1/1     Running   0          103s   10.84.1.76   gke-viscon-cluster-default-pool-ae1e0eb6-58r4   <none>           <none>
+```
+
+As you can see, all pods run on a differnt node.
+
+</details>
