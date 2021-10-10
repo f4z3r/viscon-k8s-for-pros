@@ -13,7 +13,11 @@ observability for practical use cases.
 
 ## Exploring Detailed Cluster State
 
-Access Grafana with the following URL: `TODO(@jakob): add url`
+Access Grafana with the following URL: [`http://34.98.65.73/login`][grafana]
+
+[grafana]: http://34.98.65.73/login
+
+> The password to log-in will be communicated to you during the workshop.
 
 Once on Grafana, on the left sidebar hover over "Dashboards" and click on "Manage". You should get a
 list of available dashboards prepared for you. Choose the `Kubernetes / Kubelet` dashboard.
@@ -73,7 +77,9 @@ redis_uptime_in_seconds{namespace="user-0", pod="cache-redis-cluster-0"}
 
 ## Explore Alertmanager
 
-Access Alertmanager with the following URL: `TODO(@jakob): add url`
+Access Alertmanager with the following URL: [`http://34.149.93.166/#/alerts`][alertmanager]
+
+[alertmanager]: http://34.149.93.166/#/alerts
 
 See how some alerts are triggered. These alerts are defined directly via the Kubernetes API, via API
 extensions called Custom Resource Definitions (CRDs). We have a very long list of alerts defined for
